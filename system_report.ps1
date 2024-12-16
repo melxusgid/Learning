@@ -10,30 +10,30 @@ $availableRAM = [math]::Round((Get-Counter '\Memory\Available MBytes').CounterSa
 
 # CPU Usage Comments
 if ($cpuLoad -ge 90) {
-    $cpuComment = "System's about to combust - running harder than me trying to explain taxes to a rock."
+    $cpuComment = "System's about to combust - running harder than me trying to finish a task before 5 PM."
 } elseif ($cpuLoad -ge 50) {
     $cpuComment = "Moderate load - multitasking like a parent on a Tuesday: stressed but holding it together."
 } else {
-    $cpuComment = "Light load - casually vibing like a guy scrolling Twitter for the 8th time today."
+    $cpuComment = "Light load - casually vibing like someone scrolling Twitter during lunch."
 }
 
 # RAM Usage Comments
 if ($availableRAM -lt ($totalRAM * 0.25)) {
-    $ramComment = "Memory is shot - Chrome has officially declared war on your system."
+    $ramComment = "Memory is shot - Chrome has officially declared war on your PC."
 } elseif ($availableRAM -lt ($totalRAM * 0.5)) {
-    $ramComment = "RAM's tight - Windows is holding on by a thread while Chrome chews through everything."
+    $ramComment = "RAM's tight - Windows is holding on by a thread while Chrome eats everything."
 } else {
-    $ramComment = "Memory's fine - system's cruising, which is rare given how cheap these PCs are."
+    $ramComment = "Memory's fine - surprisingly cruising along, unlike Jeff's work ethic."
 }
 
-# Process Comments
+# Process Comments Function
 function Get-ProcessComment ($process) {
-    if ($process -match "chrome|opera") { "Web browsing - your CRM tasks are why the system wheezes louder than a 90s lawnmower." }
-    elseif ($process -match "explorer") { "File explorer - Windows working overtime to let you open folders slower than dial-up." }
-    elseif ($process -match "Discord") { "Chat apps - because you *need* to tell Jeff his joke sucked during peak hours." }
-    elseif ($process -match "MsMpEng") { "Antivirus - fighting malware while your system fights for its life." }
-    elseif ($process -match "SearchApp") { "Windows Search - finding your files slower than IT finding funds for upgrades." }
-    else { "General Task - some background nonsense hogging resources like it pays rent." }
+    if ($process -match "chrome|opera") { "Web browser - hogging resources because your CRM insists on living in Chrome." }
+    elseif ($process -match "explorer") { "File explorer - Windows dragging its feet so you can open a folder at snail speed." }
+    elseif ($process -match "Discord") { "Chat app - because someone *really* needed to share a cat meme at 2 PM." }
+    elseif ($process -match "MsMpEng") { "Antivirus - working overtime to keep your questionable downloads in check." }
+    elseif ($process -match "SearchApp") { "Windows Search - struggling to find files faster than IT approving upgrades." }
+    else { "General Task - some app freeloading resources like it owns the place." }
 }
 
 # Top Processes by CPU
@@ -60,10 +60,10 @@ $($cpuReport -join "`n")
 $($ramReport -join "`n")
 
 **Suggested Upgrade:**
-Since you're reading this, it means the PCs are donezo. Buy one of these:
+Your systems are on life support. Upgrade to one of these prebuilt PCs for better performance:
 
-- HP Pavilion Desktop - [Amazon - $449](https://www.amazon.com/dp/B08XYZ)  
-- Lenovo IdeaCentre - [Best Buy - $499](https://www.bestbuy.com/site/lenovo-ideacentre/6414762.p)
+- HP Pavilion Desktop - Amazon: https://www.amazon.com/dp/B08XYZ ($449)  
+- Lenovo IdeaCentre - Best Buy: https://www.bestbuy.com/site/lenovo-ideacentre/6414762.p ($499)
 "@
 
 # Send to Discord
