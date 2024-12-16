@@ -17,7 +17,17 @@ function Show-ProgressBar {
     Write-Host "`r[Done] $TaskName completed!`n" -ForegroundColor Green
 }
 
-# Step 1: Collect System Specs
+# Step 1: Download and Confirm Script Execution
+Show-ProgressBar -DelaySeconds 3 -TaskName "Downloading Script"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/melxusgid/Learning/main/system_report.ps1" `
+    -OutFile "$env:TEMP\system_report.ps1"
+
+if (-Not (Test-Path "$env:TEMP\system_report.ps1")) {
+    Write-Host "Failed to download the script. Exiting." -ForegroundColor Red
+    exit
+}
+
+# Step 2: Collect Current System Specs
 Show-ProgressBar -DelaySeconds 3 -TaskName "Gathering System Information"
 
 $cpuLoad = [math]::Round((Get-Counter '\Processor(_Total)\% Processor Time').CounterSamples[0].CookedValue, 2)
@@ -26,7 +36,7 @@ $availableRAM = [math]::Round((Get-Counter '\Memory\Available MBytes').CounterSa
 $cpuName = (Get-CimInstance Win32_Processor).Name
 $logicalProcessors = (Get-CimInstance Win32_Processor).NumberOfLogicalProcessors
 
-# Comments for CPU and RAM Usage
+# Dynamic Comments
 $cpuCommentOptions = @(
     "CPU's maxed out - running a marathon with no water breaks",
     "CPU is being stretched thin - every app is demanding attention",
@@ -38,11 +48,10 @@ $ramCommentOptions = @(
     "RAM looks healthy - system performance is stable"
 )
 
-# Randomly Select Comments
 $cpuComment = $cpuCommentOptions | Get-Random
 $ramComment = $ramCommentOptions | Get-Random
 
-# Generate the Report
+# Generate Report
 $report = @"
 **System Resource Report**
 
@@ -54,9 +63,20 @@ $report = @"
 Report generation complete!
 "@
 
-# Step 2: Write Debug File
+# Step 3: Write Debug File
 $debugPath = "$env:TEMP\system_report_debug.txt"
 Show-ProgressBar -DelaySeconds 2 -TaskName "Writing Report to Debug File"
+
+# Ensure the file is not being accessed
+if (Test-Path $debugPath) {
+    try {
+        Remove-Item -Path $debugPath -Force
+    } catch {
+        Write-Host "Failed to delete locked file. Please close it and try again." -ForegroundColor Red
+        exit
+    }
+}
+
 $report | Out-File -FilePath $debugPath -Encoding UTF8
 
 if (Test-Path $debugPath) {
@@ -66,7 +86,7 @@ if (Test-Path $debugPath) {
     Write-Host "Failed to create debug file. Please check script execution." -ForegroundColor Red
 }
 
-# Step 3: Send Report to Discord
+# Step 4: Send Report to Discord
 Show-ProgressBar -DelaySeconds 2 -TaskName "Sending Report to Discord"
 $msg = @{ content = $report } | ConvertTo-Json -Compress
 try {
