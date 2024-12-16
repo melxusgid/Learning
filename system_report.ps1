@@ -11,90 +11,131 @@ function Show-ProgressBar {
     )
     Write-Host "`n$TaskName..." -ForegroundColor Cyan
     for ($i = 1; $i -le $DelaySeconds; $i++) {
-        Write-Host -NoNewline "`rProgress: $i / $DelaySeconds seconds"
+        Write-Host -NoNewline "`rLoading: $i / $DelaySeconds seconds"
         Start-Sleep -Seconds 1
     }
     Write-Host "`r[Done] $TaskName completed!`n" -ForegroundColor Green
 }
 
-# Function to simulate a dice roll for random comments
+# Function to simulate a D6 dice roll
 function Roll-Dice {
-    return Get-Random -Minimum 0 -Maximum 6  # Rolls between 0 and 5 for array indexing
+    return Get-Random -Minimum 1 -Maximum 7  # Rolls between 1 and 6
 }
 
-# Step 1: Gather Current System Specs
+# Recommended Upgrade Suggestions
+function Get-RecommendedUpgrades {
+    # CPU Upgrade Suggestions
+    $cpuUpgrade = switch -regex ($cpuName) {
+        "i3|Ryzen 3" { "Upgrade to Intel i5 10th Gen or AMD Ryzen 5 3600 for better multitasking performance." }
+        "i5|Ryzen 5" { "Upgrade to Intel i7 11th Gen or AMD Ryzen 7 for heavy workloads and faster processing." }
+        "i7|Ryzen 7" { "Specs sufficient for most tasks. Upgrade if needed for intensive use." }
+        default { "CPU is sufficient for general tasks. No immediate upgrade required." }
+    }
+
+    # RAM Upgrade Suggestions
+    $ramUpgrade = if ($totalRAM -lt 8) {
+        "Upgrade to 16GB RAM for smoother performance."
+    } elseif ($totalRAM -lt 16) {
+        "Upgrade to 32GB RAM for multitasking and heavier applications."
+    } else {
+        "RAM is sufficient for most workloads."
+    }
+
+    # Generate Search Query
+    $searchQuery = if ($cpuUpgrade -notmatch "sufficient") {
+        "Search for 'Desktop PC Intel i5 11th Gen or Ryzen 5 16GB RAM under $500'."
+    } else {
+        "No upgrade query needed. Your system is sufficient."
+    }
+
+    return @{
+        CPU = $cpuUpgrade
+        RAM = $ramUpgrade
+        Search = $searchQuery
+    }
+}
+
+# Step 1: Download and Confirm Script Execution
+Show-ProgressBar -DelaySeconds 3 -TaskName "Downloading Script"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/melxusgid/Learning/main/system_report.ps1" `
+    -OutFile "$env:TEMP\system_report.ps1"
+
+if (-Not (Test-Path "$env:TEMP\system_report.ps1")) {
+    Write-Host "Failed to download the script. Exiting." -ForegroundColor Red
+    exit
+}
+
+# Step 2: Collect Current System Specs
 Show-ProgressBar -DelaySeconds 3 -TaskName "Gathering System Information"
 
-# Collect System Data
-$totalLogicalProcessors = (Get-CimInstance Win32_Processor).NumberOfLogicalProcessors
-$cpuLoad = [math]::Round(((Get-Counter '\Processor(_Total)\% Processor Time').CounterSamples | 
-                         Measure-Object -Property CookedValue -Sum).Sum / $totalLogicalProcessors, 2)
+$cpuLoad = [math]::Round((Get-Counter '\Processor(_Total)\% Processor Time').CounterSamples[0].CookedValue, 2)
 $totalRAM = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)
 $availableRAM = [math]::Round((Get-Counter '\Memory\Available MBytes').CounterSamples[0].CookedValue / 1024, 2)
 $cpuName = (Get-CimInstance Win32_Processor).Name
+$logicalProcessors = (Get-CimInstance Win32_Processor).NumberOfLogicalProcessors
 
-# CPU and RAM Comment Pools
+# Dynamic Comment Pools for CPU and RAM Usage based on Thresholds
 $cpuCommentsHigh = @(
-    "Your CPU is under heavy load. Consider closing unused programs.",
-    "The CPU is maxed out. Performance might slow down.",
-    "Your CPU is working hard. Monitor it closely.",
-    "High CPU usage detected. Try reducing background tasks.",
     "CPU load is at its limit. Things might lag.",
-    "Heavy CPU usage detected. This could impact performance."
+    "Your CPU is under heavy load. Consider closing unused programs.",
+    "Heavy CPU usage detected. This could impact performance.",
+    "CPU working hard. Monitor tasks for unnecessary load.",
+    "CPU is maxed out. Optimize your applications.",
+    "CPU usage is critical. System stability may be affected."
 )
 
 $cpuCommentsMedium = @(
-    "Your CPU is performing well with moderate load.",
-    "CPU usage is balanced and stable.",
-    "Moderate CPU usage. System performance looks good.",
-    "CPU is handling tasks efficiently.",
-    "CPU load is moderate. No issues detected.",
-    "Your CPU is working normally without stress."
+    "CPU load is moderate. Performing well.",
+    "Your CPU is handling tasks efficiently.",
+    "CPU multitasking without issues.",
+    "Balanced CPU performance detected.",
+    "CPU load is manageable. No major concerns.",
+    "CPU usage is stable. Good system performance."
 )
 
 $cpuCommentsLow = @(
-    "Your CPU is idle with minimal load.",
-    "CPU usage is very low. System is running smoothly.",
-    "Light CPU activity detected. No problems here.",
     "CPU is barely working. All systems are go.",
-    "Minimal CPU usage. Performance is optimal.",
-    "Your CPU is relaxed and ready for more work."
+    "Your CPU is idling happily - no stress.",
+    "Minimal CPU usage detected. System is relaxed.",
+    "CPU is calm and steady.",
+    "CPU usage is light. Plenty of headroom left.",
+    "System idle. CPU performance is optimal."
 )
 
 $ramCommentsHigh = @(
-    "Your RAM is almost full. Close unused applications.",
+    "RAM usage is high. System performance may suffer.",
+    "Running out of memory. Close unnecessary tasks.",
     "High RAM usage detected. System may slow down.",
-    "RAM is under heavy load. Consider upgrading memory.",
-    "Low available RAM. System performance may suffer.",
-    "RAM usage is high. Free up memory if possible.",
-    "Running out of memory. Close unnecessary tasks."
+    "RAM is almost full. Consider upgrading.",
+    "RAM overload detected. Optimize your applications.",
+    "Low available RAM. Free up memory if possible."
 )
 
 $ramCommentsMedium = @(
-    "Your RAM usage is moderate. System is stable.",
-    "RAM is being used efficiently. No issues detected.",
-    "Memory usage is balanced and manageable.",
-    "RAM is working well under current load.",
-    "Moderate memory usage. System is performing fine.",
-    "RAM usage is under control with no problems."
+    "RAM usage is moderate. Performing well.",
+    "RAM is holding steady under pressure.",
+    "Balanced RAM usage. No major concerns.",
+    "RAM performance is stable for current tasks.",
+    "Moderate memory load detected. System is fine.",
+    "RAM is working efficiently. All is good."
 )
 
 $ramCommentsLow = @(
-    "Plenty of free RAM. System performance is excellent.",
-    "Your RAM usage is very low. No concerns here.",
-    "Minimal RAM usage detected. System is fast and responsive.",
     "RAM usage is light. You have room for more tasks.",
-    "Lots of free memory. Everything looks good.",
-    "System memory is relaxed and ready for more work."
+    "Plenty of free memory available.",
+    "Low memory usage detected. System is relaxed.",
+    "RAM performance is optimal. All clear.",
+    "Minimal RAM usage. System is calm.",
+    "Memory load is low. Performance is smooth."
 )
 
-# Function to Select Random Comment Based on Usage Thresholds
+# Function to Select Random Comment Based on Threshold
 function Get-RandomComment {
     param (
         [string]$Category,
-        [double]$Usage
+        [string]$Usage
     )
-    $diceRoll = Roll-Dice
+    $diceRoll = Roll-Dice - 1  # Subtract 1 to make it zero-based for array indexing
 
     switch ($Category) {
         "CPU" {
@@ -110,30 +151,30 @@ function Get-RandomComment {
     }
 }
 
-# Fetch Top CPU Processes (Accurately Capped)
+# Fetch and Normalize CPU Usage
 $topCPU = Get-Process | Where-Object { $_.CPU -ne $null } |
     Sort-Object CPU -Descending |
     Select-Object -First 5 -Property ProcessName, `
         @{Name="CPU_Usage"; Expression={
-            $usage = [math]::Round(($_.CPU / $totalLogicalProcessors), 2)
+            $usage = [math]::Round(($_.CPU / $logicalProcessors), 2)
             if ($usage -gt 100) { 100 } else { $usage } }}
 
-# Fetch Top RAM Processes
 $topRAM = Get-Process | Sort-Object PM -Descending | `
     Select-Object -First 5 -Property ProcessName, `
     @{Name="RAM_Usage_MB"; Expression={[math]::Round($_.PM / 1MB, 2)}}
+
+# Generate Recommendations
+$upgrades = Get-RecommendedUpgrades
+$recommendedCPU = $upgrades.CPU
+$recommendedRAM = $upgrades.RAM
+$upgradeSearchQuery = $upgrades.Search
 
 # Generate Report
 $cpuComment = Get-RandomComment -Category "CPU" -Usage $cpuLoad
 $ramComment = Get-RandomComment -Category "RAM" -Usage ($totalRAM - $availableRAM)
 
-$cpuReport = $topCPU | ForEach-Object {
-    "$($_.ProcessName) - $($_.CPU_Usage)% - $(Get-RandomComment -Category 'CPU' -Usage $_.CPU_Usage)"
-}
-
-$ramReport = $topRAM | ForEach-Object {
-    "$($_.ProcessName) - $($_.RAM_Usage_MB) MB - $(Get-RandomComment -Category 'RAM' -Usage $_.RAM_Usage_MB)"
-}
+$cpuReport = $topCPU | ForEach-Object { "$($_.ProcessName) - $($_.CPU_Usage)% - CPU working hard." }
+$ramReport = $topRAM | ForEach-Object { "$($_.ProcessName) - $($_.RAM_Usage_MB) MB - RAM under load." }
 
 $report = @"
 **System Resource Report**
@@ -148,6 +189,13 @@ $($cpuReport -join "`n")
 
 **Top 5 RAM Usage:**
 $($ramReport -join "`n")
+
+**Recommended Upgrades:**
+- **CPU:** $recommendedCPU
+- **RAM:** $recommendedRAM
+
+**Search Query for Upgrades:**
+$upgradeSearchQuery
 
 Report generation complete!
 "@
