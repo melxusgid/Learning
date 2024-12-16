@@ -12,42 +12,43 @@ $logicalProcessors = (Get-CimInstance Win32_Processor).NumberOfLogicalProcessors
 
 # Dynamic RAM Recommendation Logic
 $recommendedRAM = if ($totalRAM -ge 16) {
-    "Already sufficient RAM for current tasks."
+    "Already sufficient RAM for current tasks"
 } elseif ($totalRAM -lt 8) {
-    "Upgrade to 16 GB RAM for smoother performance."
+    "Upgrade to 16 GB RAM for smoother performance"
 } elseif ($totalRAM -ge 8 -and $availableRAM -lt ($totalRAM * 0.25)) {
-    "Upgrade to 16 GB or 32 GB RAM to handle your multitasking needs."
+    "Upgrade to 16 GB or 32 GB RAM to handle your multitasking needs"
 } else {
-    "Upgrade to 16 GB RAM for optimal performance."
+    "Upgrade to 16 GB RAM for optimal performance"
 }
 
 # CPU Recommendation Logic
 $cpuUpgrade = if ($cpuName -match "i3|i5|Ryzen 3") {
-    "Upgrade to Intel i5/i7 10th Gen or newer / AMD Ryzen 5 3600 for a 1.5x performance boost."
+    "Upgrade to Intel i5 or i7 10th Gen or newer or AMD Ryzen 5 3600 for better performance"
 } elseif ($cpuName -match "i7|Ryzen 5|Ryzen 7") {
-    "CPU is sufficient for most tasks - no upgrade needed unless under heavy load."
+    "CPU is sufficient for most tasks no upgrade needed unless under heavy load"
 } else {
-    "Already sufficient for tasks."
+    "Already sufficient for tasks"
 }
 
-# Comments for CPU and RAM Usage
+# Random Comments for CPU Usage
 $cpuCommentOptions = @(
-    "CPU's maxed out - it's running a marathon with no water breaks.",
-    "Heavy load - the processor is begging for mercy.",
-    "CPU is reeling as every app is demanding attention.",
-    "High CPU usage detected - things might start crawling.",
-    "Processor load is sky-high - consider upgrading."
+    "CPU is maxed out running like a marathon with no breaks",
+    "High load detected the processor is begging for relief",
+    "CPU is overloaded every app is demanding resources",
+    "CPU usage is heavy slowing everything down",
+    "Processor is working overtime multitasking is hitting limits"
 )
 
+# Random Comments for RAM Usage
 $ramCommentOptions = @(
-    "RAM's maxed - Chrome and your CRM are wrestling for scraps.",
-    "RAM is under pressure - apps are crawling.",
-    "Memory is stretched thin - things will start freezing soon.",
-    "RAM usage is critical - time to upgrade.",
-    "Not enough memory available - system struggles to keep up."
+    "RAM is fully used applications are struggling for space",
+    "Memory pressure is high performance is dropping",
+    "RAM usage is critical system is lagging behind",
+    "Available memory is tight multitasking is suffering",
+    "System memory is overworked close unnecessary tasks"
 )
 
-# Pick random comments
+# Pick Random Comments
 $cpuComment = $cpuCommentOptions | Get-Random
 $ramComment = $ramCommentOptions | Get-Random
 
@@ -59,13 +60,13 @@ $topCPU = Get-Process | Where-Object { $_.CPU -ne $null } | Sort-Object CPU -Des
 $topRAM = Get-Process | Sort-Object PM -Descending | 
     Select-Object -First 5 -Property ProcessName, @{Name="RAM_Usage_MB"; Expression={[math]::Round($_.PM / 1MB, 2)}}
 
-# Add Relatable Comments to CPU & RAM
+# Add Comments to Processes
 function Get-ProcessComment ($process) {
-    if ($process -match "chrome|opera") { "Web browser - hogging resources like Jeff at a buffet." }
-    elseif ($process -match "explorer") { "File explorer - Windows is limping along." }
-    elseif ($process -match "Discord") { "Chat app - critical for sharing memes and workplace 'productivity'." }
-    elseif ($process -match "MsMpEng") { "Antivirus - scanning harder than IT looking for your excuses." }
-    else { "Background task - freeloading on system resources." }
+    if ($process -match "chrome|opera") { "Web browser hogging resources" }
+    elseif ($process -match "explorer") { "File explorer struggling with load" }
+    elseif ($process -match "Discord") { "Chat app consuming background resources" }
+    elseif ($process -match "MsMpEng") { "Antivirus scanning hard for issues" }
+    else { "Background task using system resources" }
 }
 
 # Format CPU Report
@@ -90,21 +91,21 @@ $($cpuReport -join "`n")
 $($ramReport -join "`n")
 
 **Recommended Upgrades (1.5x to 2x Better):**
-Your current specs are slowing things down. Here's what you need:
+Your current specs are slowing things down. Here is what you need:
 - **RAM:** $recommendedRAM
 - **CPU:** $cpuUpgrade
 
 Search for **prebuilt desktops** with these specs on Amazon or Best Buy:
-- **Search Phrase:** "Budget Desktop PC 16GB RAM Intel i5 10th Gen or Ryzen 5 under $500"
+- **Search Phrase:** "Budget Desktop PC 16GB RAM Intel i5 10th Gen or Ryzen 5 under 500 dollars"
 "@
 
-# Send to Discord
+# Send Report to Discord
 $msg = @{ content = $report } | ConvertTo-Json -Compress
 
 try {
     Invoke-RestMethod -Uri $WebhookUrl -Method Post -Body $msg -ContentType 'application/json'
-    Write-Host "Report successfully sent!" -ForegroundColor Green
+    Write-Host "Report successfully sent" -ForegroundColor Green
 }
 catch {
-    Write-Host "Failed to send the report: $_" -ForegroundColor Red
+    Write-Host "Failed to send the report $_" -ForegroundColor Red
 }
