@@ -3,52 +3,47 @@ param (
     [string]$WebhookUrl
 )
 
-# Collect System Metrics
+# Collect Current System Specs
 $cpuLoad = [math]::Round((Get-Counter '\Processor(_Total)\% Processor Time').CounterSamples[0].CookedValue, 2)
 $totalRAM = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)
 $availableRAM = [math]::Round((Get-Counter '\Memory\Available MBytes').CounterSamples[0].CookedValue / 1024, 2)
+$cpuName = (Get-CimInstance Win32_Processor).Name
 
-# CPU Usage Comments
-if ($cpuLoad -ge 90) {
-    $cpuComment = "System's about to combust - running harder than me trying to finish a task before 5 PM."
-} elseif ($cpuLoad -ge 50) {
-    $cpuComment = "Moderate load - multitasking like a parent on a Tuesday: stressed but holding it together."
-} else {
-    $cpuComment = "Light load - casually vibing like someone scrolling Twitter during lunch."
-}
+# Suggested Upgrade Thresholds (1.5x to 2x Improvement)
+$recommendedRAM = if ($totalRAM -lt 8) { 16 } elseif ($totalRAM -lt 16) { 32 } else { "Already sufficient" }
+$cpuUpgrade = if ($cpuName -match "i3|i5") { "Upgrade to Intel i5 or i7 10th Gen or newer / AMD Ryzen 5 or 7" }
+elseif ($cpuName -match "Ryzen 3|Ryzen 5") { "Upgrade to Ryzen 5 5600G or Ryzen 7 5800X" }
+else { "Already sufficient for tasks." }
 
-# RAM Usage Comments
-if ($availableRAM -lt ($totalRAM * 0.25)) {
-    $ramComment = "Memory is shot - Chrome has officially declared war on your PC."
-} elseif ($availableRAM -lt ($totalRAM * 0.5)) {
-    $ramComment = "RAM's tight - Windows is holding on by a thread while Chrome eats everything."
-} else {
-    $ramComment = "Memory's fine - surprisingly cruising along, unlike Jeff's work ethic."
-}
+# Comments for CPU and RAM Usage
+$cpuComment = if ($cpuLoad -ge 90) { "CPU's maxed out - it's like running a marathon while carrying groceries." }
+elseif ($cpuLoad -ge 50) { "CPU's working hard - multitasking is stretching it thin." }
+else { "CPU load is light - it's coasting through like a lazy intern." }
 
-# Process Comments Function
+$ramComment = if ($availableRAM -lt ($totalRAM * 0.25)) { "RAM's maxed - Chrome and your CRM are wrestling for scraps." }
+elseif ($availableRAM -lt ($totalRAM * 0.5)) { "RAM is under pressure - apps are crawling." }
+else { "RAM usage looks manageable - but don't push your luck." }
+
+# Top Processes (CPU & RAM)
 function Get-ProcessComment ($process) {
-    if ($process -match "chrome|opera") { "Web browser - hogging resources because your CRM insists on living in Chrome." }
-    elseif ($process -match "explorer") { "File explorer - Windows dragging its feet so you can open a folder at snail speed." }
-    elseif ($process -match "Discord") { "Chat app - because someone *really* needed to share a cat meme at 2 PM." }
-    elseif ($process -match "MsMpEng") { "Antivirus - working overtime to keep your questionable downloads in check." }
-    elseif ($process -match "SearchApp") { "Windows Search - struggling to find files faster than IT approving upgrades." }
-    else { "General Task - some app freeloading resources like it owns the place." }
+    if ($process -match "chrome|opera") { "Web browser - hogging resources like Jeff at a buffet." }
+    elseif ($process -match "explorer") { "File explorer - Windows is limping along." }
+    elseif ($process -match "Discord") { "Chat app - critical for sharing memes and workplace 'productivity'." }
+    elseif ($process -match "MsMpEng") { "Antivirus - scanning harder than IT looking for your excuses." }
+    else { "Background task - freeloading on system resources." }
 }
 
-# Top Processes by CPU
 $topCPU = Get-Process | Sort-Object CPU -Descending | Select-Object -First 5 -Property ProcessName, @{Name="CPU_Usage"; Expression={[math]::Round($_.CPU, 2)}}
-
-# Top Processes by RAM
 $topRAM = Get-Process | Sort-Object PM -Descending | Select-Object -First 5 -Property ProcessName, @{Name="RAM_Usage_MB"; Expression={[math]::Round($_.PM / 1MB, 2)}}
 
-# Build the Report
 $cpuReport = $topCPU | ForEach-Object { "$($_.ProcessName) - $($_.CPU_Usage)% - $(Get-ProcessComment $_.ProcessName)" }
 $ramReport = $topRAM | ForEach-Object { "$($_.ProcessName) - $($_.RAM_Usage_MB) MB - $(Get-ProcessComment $_.ProcessName)" }
 
+# Build the Report
 $report = @"
 **System Resource Report:**
 
+**CPU Name:** $cpuName  
 **CPU Usage:** $cpuLoad% - $cpuComment  
 **Total RAM:** $totalRAM GB  
 **Available RAM:** $availableRAM GB - $ramComment  
@@ -59,11 +54,13 @@ $($cpuReport -join "`n")
 **Top 5 RAM Usage:**
 $($ramReport -join "`n")
 
-**Suggested Upgrade:**
-Your systems are on life support. Upgrade to one of these prebuilt PCs for better performance:
+**Recommended Upgrades (1.5x to 2x Better):**
+Your current specs are slowing things down. Here's what you need:
+- **RAM:** Upgrade to $recommendedRAM GB RAM  
+- **CPU:** $cpuUpgrade  
 
-- HP Pavilion Desktop - Amazon: https://www.amazon.com/dp/B08XYZ ($449)  
-- Lenovo IdeaCentre - Best Buy: https://www.bestbuy.com/site/lenovo-ideacentre/6414762.p ($499)
+Search for **prebuilt desktops** with these specs on Amazon or Best Buy:
+- **Search Phrase:** "Budget Desktop PC 16GB RAM Intel i5 10th Gen or Ryzen 5 under $500"
 "@
 
 # Send to Discord
