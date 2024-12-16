@@ -19,7 +19,7 @@ function Show-ProgressBar {
 
 # Function to simulate a D6 dice roll
 function Roll-Dice {
-    return Get-Random -Minimum 1 -Maximum 7
+    return Get-Random -Minimum 1 -Maximum 7  # Rolls between 1 and 6
 }
 
 # Step 1: Download and Confirm Script Execution
@@ -102,27 +102,29 @@ function Get-RandomComment {
         [string]$Category,
         [string]$Usage
     )
-    $diceRoll = Roll-Dice
+    $diceRoll = Roll-Dice - 1  # Subtract 1 to make it zero-based for array indexing
 
     switch ($Category) {
         "CPU" {
-            if ($Usage -ge 80) { return $cpuCommentsHigh[$diceRoll - 1] }
-            elseif ($Usage -ge 50) { return $cpuCommentsMedium[$diceRoll - 1] }
-            else { return $cpuCommentsLow[$diceRoll - 1] }
+            if ($Usage -ge 80) { return $cpuCommentsHigh[$diceRoll] }
+            elseif ($Usage -ge 50) { return $cpuCommentsMedium[$diceRoll] }
+            else { return $cpuCommentsLow[$diceRoll] }
         }
         "RAM" {
-            if ($Usage -ge ($totalRAM * 0.75)) { return $ramCommentsHigh[$diceRoll - 1] }
-            elseif ($Usage -ge ($totalRAM * 0.5)) { return $ramCommentsMedium[$diceRoll - 1] }
-            else { return $ramCommentsLow[$diceRoll - 1] }
+            if ($Usage -ge ($totalRAM * 0.75)) { return $ramCommentsHigh[$diceRoll] }
+            elseif ($Usage -ge ($totalRAM * 0.5)) { return $ramCommentsMedium[$diceRoll] }
+            else { return $ramCommentsLow[$diceRoll] }
         }
     }
 }
 
-# Fetch and Normalize CPU Usage
+# Fetch and Normalize CPU Usage (Capped at 100%)
 $topCPU = Get-Process | Where-Object { $_.CPU -ne $null } |
     Sort-Object CPU -Descending |
     Select-Object -First 5 -Property ProcessName, `
-    @{Name="CPU_Usage"; Expression={[math]::Round(($_.CPU / $logicalProcessors), 2)}}
+        @{Name="CPU_Usage"; Expression={
+            $usage = [math]::Round(($_.CPU / $logicalProcessors), 2)
+            if ($usage -gt 100) { 100 } else { $usage } }}
 
 # Fetch Top RAM Processes
 $topRAM = Get-Process | Sort-Object PM -Descending | `
