@@ -9,11 +9,25 @@ $totalRAM = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMe
 $availableRAM = [math]::Round((Get-Counter '\Memory\Available MBytes').CounterSamples[0].CookedValue / 1024, 2)
 $cpuName = (Get-CimInstance Win32_Processor).Name
 
-# Suggested Upgrade Thresholds (1.5x to 2x Improvement)
-$recommendedRAM = if ($totalRAM -lt 8) { 16 } elseif ($totalRAM -lt 16) { 32 } else { "Already sufficient" }
-$cpuUpgrade = if ($cpuName -match "i3|i5") { "Upgrade to Intel i5 or i7 10th Gen or newer / AMD Ryzen 5 or 7" }
-elseif ($cpuName -match "Ryzen 3|Ryzen 5") { "Upgrade to Ryzen 5 5600G or Ryzen 7 5800X" }
-else { "Already sufficient for tasks." }
+# Dynamic RAM Recommendation Logic
+$recommendedRAM = if ($totalRAM -ge 16) {
+    "Already sufficient RAM for current tasks."
+} elseif ($totalRAM -lt 8) {
+    "Upgrade to 16 GB RAM for smoother performance."
+} elseif ($totalRAM -ge 8 -and $availableRAM -lt ($totalRAM * 0.25)) {
+    "Upgrade to 16 GB or 32 GB RAM to handle your multitasking needs."
+} else {
+    "Upgrade to 16 GB RAM for optimal performance."
+}
+
+# CPU Recommendation Logic
+$cpuUpgrade = if ($cpuName -match "i3|i5|Ryzen 3") {
+    "Upgrade to Intel i5/i7 10th Gen or newer / AMD Ryzen 5 3600 for a 1.5x performance boost."
+} elseif ($cpuName -match "i7|Ryzen 5|Ryzen 7") {
+    "CPU is sufficient for most tasks - no upgrade needed unless under heavy load."
+} else {
+    "Already sufficient for tasks."
+}
 
 # Comments for CPU and RAM Usage
 $cpuComment = if ($cpuLoad -ge 90) { "CPU's maxed out - it's like running a marathon while carrying groceries." }
@@ -56,8 +70,8 @@ $($ramReport -join "`n")
 
 **Recommended Upgrades (1.5x to 2x Better):**
 Your current specs are slowing things down. Here's what you need:
-- **RAM:** Upgrade to $recommendedRAM GB RAM  
-- **CPU:** $cpuUpgrade  
+- **RAM:** $recommendedRAM
+- **CPU:** $cpuUpgrade
 
 Search for **prebuilt desktops** with these specs on Amazon or Best Buy:
 - **Search Phrase:** "Budget Desktop PC 16GB RAM Intel i5 10th Gen or Ryzen 5 under $500"
