@@ -17,6 +17,11 @@ function Show-ProgressBar {
     Write-Host "`r[Done] $TaskName completed!`n" -ForegroundColor Green
 }
 
+# Function to simulate a D6 dice roll
+function Roll-Dice {
+    return Get-Random -Minimum 1 -Maximum 7
+}
+
 # Step 1: Download and Confirm Script Execution
 Show-ProgressBar -DelaySeconds 3 -TaskName "Downloading Script"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/melxusgid/Learning/main/system_report.ps1" `
@@ -36,71 +41,101 @@ $availableRAM = [math]::Round((Get-Counter '\Memory\Available MBytes').CounterSa
 $cpuName = (Get-CimInstance Win32_Processor).Name
 $logicalProcessors = (Get-CimInstance Win32_Processor).NumberOfLogicalProcessors
 
-# Dynamic Comments
-$cpuCommentOptions = @(
-    "CPU's maxed out - running a marathon with no water breaks",
-    "CPU is being stretched thin - every app is demanding attention",
-    "CPU is handling tasks efficiently - no major bottlenecks here"
-)
-$ramCommentOptions = @(
-    "RAM is overloaded - applications are crawling",
-    "RAM is tight - Chrome and your CRM are wrestling for scraps",
-    "RAM looks healthy - system performance is stable"
+# Dynamic Comment Pools for CPU and RAM Usage based on Thresholds
+$cpuCommentsHigh = @(
+    "CPU melting, your machine might need ice.",
+    "Overworked CPU is waving a white flag.",
+    "The CPU marathon continues - uphill it is.",
+    "CPU on fire, it cannot go faster.",
+    "Your CPU is juggling too many tasks.",
+    "A nap the CPU needs, work too much it does."
 )
 
-$cpuComment = $cpuCommentOptions | Get-Random
-$ramComment = $ramCommentOptions | Get-Random
+$cpuCommentsMedium = @(
+    "CPU working steadily - balance it maintains.",
+    "Moderate load, your CPU is not stressed.",
+    "CPU holding up fine, but watch the load.",
+    "CPU multitasking, calm and collected.",
+    "Steady CPU performance, ready for more tasks.",
+    "Balanced load your CPU has - wise usage, hmm."
+)
 
-# Fetch and Normalize CPU Usage (Capped at 100%)
+$cpuCommentsLow = @(
+    "CPU resting - a coffee break it takes.",
+    "CPU idling happily - no stress it feels.",
+    "Light load - CPU coasting like a cloud.",
+    "Barely working, your CPU is chilling.",
+    "CPU at peace, minimal tasks it handles.",
+    "Your CPU finds serenity in idleness."
+)
+
+$ramCommentsHigh = @(
+    "RAM overloaded, bursting it feels.",
+    "Memory chaos - too many things open.",
+    "RAM begging for relief - upgrade you should.",
+    "RAM nearing its limits - warning you, it is.",
+    "Memory wrestling match - upgrade needed soon.",
+    "Full your RAM is - suffering, it is."
+)
+
+$ramCommentsMedium = @(
+    "RAM under pressure, but holding steady.",
+    "Moderate load - your RAM manages for now.",
+    "RAM working efficiently - stable it remains.",
+    "Memory load balanced, watch for spikes.",
+    "RAM maintaining order, a little stress it shows.",
+    "Your RAM works hard but stays controlled."
+)
+
+$ramCommentsLow = @(
+    "RAM free and clear, space there is plenty.",
+    "Low memory usage - all is calm.",
+    "RAM relaxing, tasks are light.",
+    "Peaceful RAM, your system hums along.",
+    "RAM usage low - room to grow, there is.",
+    "Calm and idle, your RAM feels at ease."
+)
+
+# Function to Select Random Comment Based on Threshold
+function Get-RandomComment {
+    param (
+        [string]$Category,
+        [string]$Usage
+    )
+    $diceRoll = Roll-Dice
+
+    switch ($Category) {
+        "CPU" {
+            if ($Usage -ge 80) { return $cpuCommentsHigh[$diceRoll - 1] }
+            elseif ($Usage -ge 50) { return $cpuCommentsMedium[$diceRoll - 1] }
+            else { return $cpuCommentsLow[$diceRoll - 1] }
+        }
+        "RAM" {
+            if ($Usage -ge ($totalRAM * 0.75)) { return $ramCommentsHigh[$diceRoll - 1] }
+            elseif ($Usage -ge ($totalRAM * 0.5)) { return $ramCommentsMedium[$diceRoll - 1] }
+            else { return $ramCommentsLow[$diceRoll - 1] }
+        }
+    }
+}
+
+# Fetch and Normalize CPU Usage
 $topCPU = Get-Process | Where-Object { $_.CPU -ne $null } |
     Sort-Object CPU -Descending |
     Select-Object -First 5 -Property ProcessName, `
-        @{Name="CPU_Usage"; Expression={[math]::Round(($_.CPU / $logicalProcessors), 2) -as [double]]}
-
-# Adjust CPU Usage Percentage Cap
-$topCPU = $topCPU | ForEach-Object {
-    $_.CPU_Usage = if ($_.CPU_Usage -gt 100) { 100 } else { $_.CPU_Usage }
-    $_
-}
+    @{Name="CPU_Usage"; Expression={[math]::Round(($_.CPU / $logicalProcessors), 2)}}
 
 # Fetch Top RAM Processes
 $topRAM = Get-Process | Sort-Object PM -Descending | `
     Select-Object -First 5 -Property ProcessName, `
     @{Name="RAM_Usage_MB"; Expression={[math]::Round($_.PM / 1MB, 2)}}
 
-# Upgrade Suggestions
-$recommendedRAM = if ($totalRAM -ge 16) {
-    "Already sufficient RAM for current tasks."
-} elseif ($totalRAM -lt 8) {
-    "Upgrade to 16 GB RAM for smoother performance."
-} elseif ($totalRAM -ge 8 -and $availableRAM -lt ($totalRAM * 0.25)) {
-    "Upgrade to 16 GB or 32 GB RAM to handle your multitasking needs."
-} else {
-    "Upgrade to 16 GB RAM for optimal performance."
-}
+# Generate Report
+$cpuComment = Get-RandomComment -Category "CPU" -Usage $cpuLoad
+$ramComment = Get-RandomComment -Category "RAM" -Usage ($totalRAM - $availableRAM)
 
-$cpuUpgrade = if ($cpuName -match "i3|i5|Ryzen 3") {
-    "Upgrade to Intel i5/i7 10th Gen or newer / AMD Ryzen 5 3600 for a 1.5x performance boost."
-} elseif ($cpuName -match "i7|Ryzen 5|Ryzen 7") {
-    "CPU is sufficient for most tasks - no upgrade needed unless under heavy load."
-} else {
-    "Already sufficient for tasks."
-}
+$cpuReport = $topCPU | ForEach-Object { "$($_.ProcessName) - $($_.CPU_Usage)% - High usage, this is." }
+$ramReport = $topRAM | ForEach-Object { "$($_.ProcessName) - $($_.RAM_Usage_MB) MB - Using space wisely, it is." }
 
-# Add Relatable Comments
-function Get-ProcessComment ($process) {
-    if ($process -match "chrome|opera") { "Web browser - hogging resources." }
-    elseif ($process -match "explorer") { "File explorer - system navigation." }
-    elseif ($process -match "Discord") { "Chat app - critical for communication." }
-    elseif ($process -match "MsMpEng") { "Antivirus - scanning for threats." }
-    else { "Background task - using resources quietly." }
-}
-
-# Format CPU and RAM Reports
-$cpuReport = $topCPU | ForEach-Object { "$($_.ProcessName) - $($_.CPU_Usage)% - $(Get-ProcessComment $_.ProcessName)" }
-$ramReport = $topRAM | ForEach-Object { "$($_.ProcessName) - $($_.RAM_Usage_MB) MB - $(Get-ProcessComment $_.ProcessName)" }
-
-# Build the Final Report
 $report = @"
 **System Resource Report**
 
@@ -115,36 +150,14 @@ $($cpuReport -join "`n")
 **Top 5 RAM Usage:**
 $($ramReport -join "`n")
 
-**Recommended Upgrades (1.5x to 2x Better):**
-Your current specs are slowing things down. Here's what you need:
-- **RAM:** $recommendedRAM
-- **CPU:** $cpuUpgrade
-
 Report generation complete!
 "@
 
 # Step 3: Write Debug File
 $debugPath = "$env:TEMP\system_report_debug.txt"
 Show-ProgressBar -DelaySeconds 2 -TaskName "Writing Report to Debug File"
-
-# Ensure the file is not being accessed
-if (Test-Path $debugPath) {
-    try {
-        Remove-Item -Path $debugPath -Force
-    } catch {
-        Write-Host "Failed to delete locked file. Please close it and try again." -ForegroundColor Red
-        exit
-    }
-}
-
 $report | Out-File -FilePath $debugPath -Encoding UTF8
-
-if (Test-Path $debugPath) {
-    Write-Host "Debug file successfully created!" -ForegroundColor Green
-    Start-Process notepad.exe $debugPath
-} else {
-    Write-Host "Failed to create debug file. Please check script execution." -ForegroundColor Red
-}
+Start-Process notepad.exe $debugPath
 
 # Step 4: Send Report to Discord
 Show-ProgressBar -DelaySeconds 2 -TaskName "Sending Report to Discord"
