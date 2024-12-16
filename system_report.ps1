@@ -46,14 +46,16 @@ $cpuUpgrade = if ($cpuName -match "i3|i5|Ryzen 3") {
 
 # Comments for CPU and RAM Usage
 $cpuCommentOptions = @(
-    "CPU's maxed out - running a marathon with no water breaks",
-    "CPU is being stretched thin - every app is demanding attention",
-    "CPU is handling tasks efficiently - no major bottlenecks here"
+    "CPU is maxed out running a marathon without breaks",
+    "CPU is being stretched thin by demanding apps",
+    "CPU is cruising efficiently with current tasks",
+    "CPU performance is stable and sufficient for now"
 )
 $ramCommentOptions = @(
-    "RAM is overloaded - applications are crawling",
-    "RAM is tight - Chrome and your CRM are wrestling for scraps",
-    "RAM looks healthy - system performance is stable"
+    "RAM is overloaded, apps are crawling",
+    "RAM is tight, multitasking is straining it",
+    "RAM usage looks healthy and stable",
+    "RAM is handling the workload smoothly"
 )
 
 # Randomly Select Comments
@@ -118,11 +120,11 @@ catch {
     Write-Host "Failed to send the report: $_" -ForegroundColor Red
 }
 
-# Debug File Creation Check
-Show-ProgressBar -DelaySeconds 10 -TaskName "Ensuring report debug file is created..."
+# Debug File Creation Check with Progress Bar
+$debugPath = "$env:TEMP\system_report_debug.txt"
+Show-ProgressBar -DelaySeconds 10 -TaskName "Ensuring debug file is created..."
 
 # Write Debug Log and Open
-$debugPath = "$env:TEMP\system_report_debug.txt"
 $report | Out-File -FilePath $debugPath -Encoding UTF8
 
 if (Test-Path $debugPath) {
