@@ -51,10 +51,17 @@ $ramCommentOptions = @(
 $cpuComment = $cpuCommentOptions | Get-Random
 $ramComment = $ramCommentOptions | Get-Random
 
-# Fetch Top CPU Processes
-$topCPU = Get-Process | Where-Object { $_.CPU -ne $null } | `
-    Sort-Object CPU -Descending | Select-Object -First 5 -Property ProcessName, `
-    @{Name="CPU_Usage"; Expression={[math]::Round($_.CPU / $logicalProcessors, 2)}}
+# Fetch and Normalize CPU Usage (Capped at 100%)
+$topCPU = Get-Process | Where-Object { $_.CPU -ne $null } |
+    Sort-Object CPU -Descending |
+    Select-Object -First 5 -Property ProcessName, `
+        @{Name="CPU_Usage"; Expression={[math]::Round(($_.CPU / $logicalProcessors), 2) -as [double]]}
+
+# Adjust CPU Usage Percentage Cap
+$topCPU = $topCPU | ForEach-Object {
+    $_.CPU_Usage = if ($_.CPU_Usage -gt 100) { 100 } else { $_.CPU_Usage }
+    $_
+}
 
 # Fetch Top RAM Processes
 $topRAM = Get-Process | Sort-Object PM -Descending | `
