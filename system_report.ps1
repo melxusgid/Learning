@@ -51,7 +51,49 @@ $ramCommentOptions = @(
 $cpuComment = $cpuCommentOptions | Get-Random
 $ramComment = $ramCommentOptions | Get-Random
 
-# Generate Report
+# Fetch Top CPU Processes
+$topCPU = Get-Process | Where-Object { $_.CPU -ne $null } | `
+    Sort-Object CPU -Descending | Select-Object -First 5 -Property ProcessName, `
+    @{Name="CPU_Usage"; Expression={[math]::Round($_.CPU / $logicalProcessors, 2)}}
+
+# Fetch Top RAM Processes
+$topRAM = Get-Process | Sort-Object PM -Descending | `
+    Select-Object -First 5 -Property ProcessName, `
+    @{Name="RAM_Usage_MB"; Expression={[math]::Round($_.PM / 1MB, 2)}}
+
+# Upgrade Suggestions
+$recommendedRAM = if ($totalRAM -ge 16) {
+    "Already sufficient RAM for current tasks."
+} elseif ($totalRAM -lt 8) {
+    "Upgrade to 16 GB RAM for smoother performance."
+} elseif ($totalRAM -ge 8 -and $availableRAM -lt ($totalRAM * 0.25)) {
+    "Upgrade to 16 GB or 32 GB RAM to handle your multitasking needs."
+} else {
+    "Upgrade to 16 GB RAM for optimal performance."
+}
+
+$cpuUpgrade = if ($cpuName -match "i3|i5|Ryzen 3") {
+    "Upgrade to Intel i5/i7 10th Gen or newer / AMD Ryzen 5 3600 for a 1.5x performance boost."
+} elseif ($cpuName -match "i7|Ryzen 5|Ryzen 7") {
+    "CPU is sufficient for most tasks - no upgrade needed unless under heavy load."
+} else {
+    "Already sufficient for tasks."
+}
+
+# Add Relatable Comments
+function Get-ProcessComment ($process) {
+    if ($process -match "chrome|opera") { "Web browser - hogging resources." }
+    elseif ($process -match "explorer") { "File explorer - system navigation." }
+    elseif ($process -match "Discord") { "Chat app - critical for communication." }
+    elseif ($process -match "MsMpEng") { "Antivirus - scanning for threats." }
+    else { "Background task - using resources quietly." }
+}
+
+# Format CPU and RAM Reports
+$cpuReport = $topCPU | ForEach-Object { "$($_.ProcessName) - $($_.CPU_Usage)% - $(Get-ProcessComment $_.ProcessName)" }
+$ramReport = $topRAM | ForEach-Object { "$($_.ProcessName) - $($_.RAM_Usage_MB) MB - $(Get-ProcessComment $_.ProcessName)" }
+
+# Build the Final Report
 $report = @"
 **System Resource Report**
 
@@ -59,6 +101,17 @@ $report = @"
 **CPU Usage:** $cpuLoad% - $cpuComment  
 **Total RAM:** $totalRAM GB  
 **Available RAM:** $availableRAM GB - $ramComment  
+
+**Top 5 CPU Usage:**
+$($cpuReport -join "`n")
+
+**Top 5 RAM Usage:**
+$($ramReport -join "`n")
+
+**Recommended Upgrades (1.5x to 2x Better):**
+Your current specs are slowing things down. Here's what you need:
+- **RAM:** $recommendedRAM
+- **CPU:** $cpuUpgrade
 
 Report generation complete!
 "@
