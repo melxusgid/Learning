@@ -11,13 +11,13 @@ function Show-ProgressBar {
     )
     Write-Host "`n$TaskName..." -ForegroundColor Cyan
     for ($i = 1; $i -le $DelaySeconds; $i++) {
-        Write-Host -NoNewline "`rLoading: $i / $DelaySeconds seconds"
+        Write-Host -NoNewline "`rProgress: $i / $DelaySeconds seconds"
         Start-Sleep -Seconds 1
     }
     Write-Host "`r[Done] $TaskName completed!`n" -ForegroundColor Green
 }
 
-# Function to simulate a D6 dice roll
+# Function to simulate a dice roll for random comments
 function Roll-Dice {
     return Get-Random -Minimum 0 -Maximum 6  # Rolls between 0 and 5 for array indexing
 }
@@ -33,68 +33,68 @@ $totalRAM = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMe
 $availableRAM = [math]::Round((Get-Counter '\Memory\Available MBytes').CounterSamples[0].CookedValue / 1024, 2)
 $cpuName = (Get-CimInstance Win32_Processor).Name
 
-# Dynamic Comment Pools for CPU and RAM Usage
+# CPU and RAM Comment Pools
 $cpuCommentsHigh = @(
-    "CPU melting, your machine might need ice.",
-    "Overworked CPU is waving a white flag.",
-    "The CPU marathon continues - uphill it is.",
-    "CPU on fire, it cannot go faster.",
-    "Your CPU is juggling too many tasks.",
-    "A nap the CPU needs, work too much it does."
+    "Your CPU is under heavy load. Consider closing unused programs.",
+    "The CPU is maxed out. Performance might slow down.",
+    "Your CPU is working hard. Monitor it closely.",
+    "High CPU usage detected. Try reducing background tasks.",
+    "CPU load is at its limit. Things might lag.",
+    "Heavy CPU usage detected. This could impact performance."
 )
 
 $cpuCommentsMedium = @(
-    "CPU working steadily - balance it maintains.",
-    "Moderate load, your CPU is not stressed.",
-    "CPU holding up fine, but watch the load.",
-    "CPU multitasking, calm and collected.",
-    "Steady CPU performance, ready for more tasks.",
-    "Balanced load your CPU has - wise usage, hmm."
+    "Your CPU is performing well with moderate load.",
+    "CPU usage is balanced and stable.",
+    "Moderate CPU usage. System performance looks good.",
+    "CPU is handling tasks efficiently.",
+    "CPU load is moderate. No issues detected.",
+    "Your CPU is working normally without stress."
 )
 
 $cpuCommentsLow = @(
-    "CPU resting - a coffee break it takes.",
-    "CPU idling happily - no stress it feels.",
-    "Light load - CPU coasting like a cloud.",
-    "Barely working, your CPU is chilling.",
-    "CPU at peace, minimal tasks it handles.",
-    "Your CPU finds serenity in idleness."
+    "Your CPU is idle with minimal load.",
+    "CPU usage is very low. System is running smoothly.",
+    "Light CPU activity detected. No problems here.",
+    "CPU is barely working. All systems are go.",
+    "Minimal CPU usage. Performance is optimal.",
+    "Your CPU is relaxed and ready for more work."
 )
 
 $ramCommentsHigh = @(
-    "RAM overloaded, bursting it feels.",
-    "Memory chaos - too many things open.",
-    "RAM begging for relief - upgrade you should.",
-    "RAM nearing its limits - warning you, it is.",
-    "Memory wrestling match - upgrade needed soon.",
-    "Full your RAM is - suffering, it is."
+    "Your RAM is almost full. Close unused applications.",
+    "High RAM usage detected. System may slow down.",
+    "RAM is under heavy load. Consider upgrading memory.",
+    "Low available RAM. System performance may suffer.",
+    "RAM usage is high. Free up memory if possible.",
+    "Running out of memory. Close unnecessary tasks."
 )
 
 $ramCommentsMedium = @(
-    "RAM under pressure, but holding steady.",
-    "Moderate load - your RAM manages for now.",
-    "RAM working efficiently - stable it remains.",
-    "Memory load balanced, watch for spikes.",
-    "RAM maintaining order, a little stress it shows.",
-    "Your RAM works hard but stays controlled."
+    "Your RAM usage is moderate. System is stable.",
+    "RAM is being used efficiently. No issues detected.",
+    "Memory usage is balanced and manageable.",
+    "RAM is working well under current load.",
+    "Moderate memory usage. System is performing fine.",
+    "RAM usage is under control with no problems."
 )
 
 $ramCommentsLow = @(
-    "RAM free and clear, space there is plenty.",
-    "Low memory usage - all is calm.",
-    "RAM relaxing, tasks are light.",
-    "Peaceful RAM, your system hums along.",
-    "RAM usage low - room to grow, there is.",
-    "Calm and idle, your RAM feels at ease."
+    "Plenty of free RAM. System performance is excellent.",
+    "Your RAM usage is very low. No concerns here.",
+    "Minimal RAM usage detected. System is fast and responsive.",
+    "RAM usage is light. You have room for more tasks.",
+    "Lots of free memory. Everything looks good.",
+    "System memory is relaxed and ready for more work."
 )
 
-# Function to Select Random Comment Based on Threshold
+# Function to Select Random Comment Based on Usage Thresholds
 function Get-RandomComment {
     param (
         [string]$Category,
         [double]$Usage
     )
-    $diceRoll = Roll-Dice  # Generate a new roll for each process
+    $diceRoll = Roll-Dice
 
     switch ($Category) {
         "CPU" {
@@ -110,7 +110,7 @@ function Get-RandomComment {
     }
 }
 
-# Fetch and Normalize CPU Usage (Properly Summed Across Logical Processors)
+# Fetch Top CPU Processes (Accurately Capped)
 $topCPU = Get-Process | Where-Object { $_.CPU -ne $null } |
     Sort-Object CPU -Descending |
     Select-Object -First 5 -Property ProcessName, `
