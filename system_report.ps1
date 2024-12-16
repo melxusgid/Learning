@@ -8,6 +8,7 @@ $cpuLoad = [math]::Round((Get-Counter '\Processor(_Total)\% Processor Time').Cou
 $totalRAM = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)
 $availableRAM = [math]::Round((Get-Counter '\Memory\Available MBytes').CounterSamples[0].CookedValue / 1024, 2)
 $cpuName = (Get-CimInstance Win32_Processor).Name
+$logicalProcessors = (Get-CimInstance Win32_Processor).NumberOfLogicalProcessors
 
 # Dynamic RAM Recommendation Logic
 $recommendedRAM = if ($totalRAM -ge 16) {
@@ -38,7 +39,15 @@ $ramComment = if ($availableRAM -lt ($totalRAM * 0.25)) { "RAM's maxed - Chrome 
 elseif ($availableRAM -lt ($totalRAM * 0.5)) { "RAM is under pressure - apps are crawling." }
 else { "RAM usage looks manageable - but don't push your luck." }
 
-# Top Processes (CPU & RAM)
+# Fetch and Normalize CPU Usage
+$topCPU = Get-Process | Where-Object { $_.CPU -ne $null } | Sort-Object CPU -Descending | 
+    Select-Object -First 5 -Property ProcessName, @{Name="CPU_Usage"; Expression={[math]::Round(($_.CPU / $logicalProcessors), 2)}}
+
+# Fetch Top RAM Usage
+$topRAM = Get-Process | Sort-Object PM -Descending | 
+    Select-Object -First 5 -Property ProcessName, @{Name="RAM_Usage_MB"; Expression={[math]::Round($_.PM / 1MB, 2)}}
+
+# Add Relatable Comments to CPU & RAM
 function Get-ProcessComment ($process) {
     if ($process -match "chrome|opera") { "Web browser - hogging resources like Jeff at a buffet." }
     elseif ($process -match "explorer") { "File explorer - Windows is limping along." }
@@ -47,10 +56,10 @@ function Get-ProcessComment ($process) {
     else { "Background task - freeloading on system resources." }
 }
 
-$topCPU = Get-Process | Sort-Object CPU -Descending | Select-Object -First 5 -Property ProcessName, @{Name="CPU_Usage"; Expression={[math]::Round($_.CPU, 2)}}
-$topRAM = Get-Process | Sort-Object PM -Descending | Select-Object -First 5 -Property ProcessName, @{Name="RAM_Usage_MB"; Expression={[math]::Round($_.PM / 1MB, 2)}}
-
+# Format CPU Report
 $cpuReport = $topCPU | ForEach-Object { "$($_.ProcessName) - $($_.CPU_Usage)% - $(Get-ProcessComment $_.ProcessName)" }
+
+# Format RAM Report
 $ramReport = $topRAM | ForEach-Object { "$($_.ProcessName) - $($_.RAM_Usage_MB) MB - $(Get-ProcessComment $_.ProcessName)" }
 
 # Build the Report
