@@ -9,10 +9,10 @@ $totalRAM = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMe
 $availableRAM = [math]::Round((Get-Counter '\Memory\Available MBytes').CounterSamples[0].CookedValue / 1024, 2)
 
 # Top Processes by CPU
-$topCPU = Get-Process | Sort-Object CPU -Descending | Select-Object -First 10 -Property ProcessName, CPU
+$topCPU = Get-Process | Sort-Object CPU -Descending | Select-Object -First 5 -Property ProcessName, CPU
 
 # Top Processes by RAM
-$topRAM = Get-Process | Sort-Object PM -Descending | Select-Object -First 10 -Property ProcessName, @{Name="RAM_Usage"; Expression={[math]::Round($_.PM / 1MB, 2)}}
+$topRAM = Get-Process | Sort-Object PM -Descending | Select-Object -First 5 -Property ProcessName, @{Name="RAM_Usage"; Expression={[math]::Round($_.PM / 1MB, 2)}}
 
 # Build the Report
 $report = @"
@@ -22,22 +22,22 @@ $report = @"
 **Total RAM:** $totalRAM GB  
 **Available RAM:** $availableRAM GB  
 
-**Top 10 CPU Usage:**
+**Top 5 CPU Usage:**
 $($topCPU | Format-Table -AutoSize | Out-String)
 
-**Top 10 RAM Usage:**
+**Top 5 RAM Usage:**
 $($topRAM | Format-Table -AutoSize | Out-String)
 "@
 
-# Convert Report to JSON Format
+# Convert Report to JSON
 $msg = @{
     content = $report
 } | ConvertTo-Json -Compress
 
-# Send the Report to Discord
+# Send to Discord Webhook
 try {
     Invoke-RestMethod -Uri $WebhookUrl -Method Post -Body $msg -ContentType 'application/json'
-    Write-Host "System report sent successfully!" -ForegroundColor Green
+    Write-Host "Report successfully sent!" -ForegroundColor Green
 }
 catch {
     Write-Host "Failed to send the report: $_" -ForegroundColor Red
