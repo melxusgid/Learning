@@ -19,29 +19,21 @@ function Show-ProgressBar {
 
 # Function to simulate a D6 dice roll
 function Roll-Dice {
-    return Get-Random -Minimum 1 -Maximum 7  # Rolls between 1 and 6
+    return Get-Random -Minimum 0 -Maximum 6  # Rolls between 0 and 5 for array indexing
 }
 
-# Step 1: Download and Confirm Script Execution
-Show-ProgressBar -DelaySeconds 3 -TaskName "Downloading Script"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/melxusgid/Learning/main/system_report.ps1" `
-    -OutFile "$env:TEMP\system_report.ps1"
-
-if (-Not (Test-Path "$env:TEMP\system_report.ps1")) {
-    Write-Host "Failed to download the script. Exiting." -ForegroundColor Red
-    exit
-}
-
-# Step 2: Collect Current System Specs
+# Step 1: Gather Current System Specs
 Show-ProgressBar -DelaySeconds 3 -TaskName "Gathering System Information"
 
-$cpuLoad = [math]::Round((Get-Counter '\Processor(_Total)\% Processor Time').CounterSamples[0].CookedValue, 2)
+# Collect System Data
+$totalLogicalProcessors = (Get-CimInstance Win32_Processor).NumberOfLogicalProcessors
+$cpuLoad = [math]::Round(((Get-Counter '\Processor(_Total)\% Processor Time').CounterSamples | 
+                         Measure-Object -Property CookedValue -Sum).Sum / $totalLogicalProcessors, 2)
 $totalRAM = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 2)
 $availableRAM = [math]::Round((Get-Counter '\Memory\Available MBytes').CounterSamples[0].CookedValue / 1024, 2)
 $cpuName = (Get-CimInstance Win32_Processor).Name
-$logicalProcessors = (Get-CimInstance Win32_Processor).NumberOfLogicalProcessors
 
-# Dynamic Comment Pools for CPU and RAM Usage based on Thresholds
+# Dynamic Comment Pools for CPU and RAM Usage
 $cpuCommentsHigh = @(
     "CPU melting, your machine might need ice.",
     "Overworked CPU is waving a white flag.",
@@ -100,9 +92,9 @@ $ramCommentsLow = @(
 function Get-RandomComment {
     param (
         [string]$Category,
-        [string]$Usage
+        [double]$Usage
     )
-    $diceRoll = Roll-Dice - 1  # Subtract 1 to make it zero-based for array indexing
+    $diceRoll = Roll-Dice  # Generate a new roll for each process
 
     switch ($Category) {
         "CPU" {
@@ -118,12 +110,12 @@ function Get-RandomComment {
     }
 }
 
-# Fetch and Normalize CPU Usage (Capped at 100%)
+# Fetch and Normalize CPU Usage (Properly Summed Across Logical Processors)
 $topCPU = Get-Process | Where-Object { $_.CPU -ne $null } |
     Sort-Object CPU -Descending |
     Select-Object -First 5 -Property ProcessName, `
         @{Name="CPU_Usage"; Expression={
-            $usage = [math]::Round(($_.CPU / $logicalProcessors), 2)
+            $usage = [math]::Round(($_.CPU / $totalLogicalProcessors), 2)
             if ($usage -gt 100) { 100 } else { $usage } }}
 
 # Fetch Top RAM Processes
@@ -135,8 +127,13 @@ $topRAM = Get-Process | Sort-Object PM -Descending | `
 $cpuComment = Get-RandomComment -Category "CPU" -Usage $cpuLoad
 $ramComment = Get-RandomComment -Category "RAM" -Usage ($totalRAM - $availableRAM)
 
-$cpuReport = $topCPU | ForEach-Object { "$($_.ProcessName) - $($_.CPU_Usage)% - High usage, this is." }
-$ramReport = $topRAM | ForEach-Object { "$($_.ProcessName) - $($_.RAM_Usage_MB) MB - Using space wisely, it is." }
+$cpuReport = $topCPU | ForEach-Object {
+    "$($_.ProcessName) - $($_.CPU_Usage)% - $(Get-RandomComment -Category 'CPU' -Usage $_.CPU_Usage)"
+}
+
+$ramReport = $topRAM | ForEach-Object {
+    "$($_.ProcessName) - $($_.RAM_Usage_MB) MB - $(Get-RandomComment -Category 'RAM' -Usage $_.RAM_Usage_MB)"
+}
 
 $report = @"
 **System Resource Report**
