@@ -17,14 +17,6 @@ function Show-ProgressBar {
     Write-Host "`r[Done] $TaskName completed!`n" -ForegroundColor Green
 }
 
-# Function to simulate a D6 dice roll
-function Roll-Dice {
-    return Get-Random -Minimum 1 -Maximum 7  # Rolls between 1 and 6
-}
-
-# Record Script Start Time
-$startTime = Get-Date
-
 # Step 1: Download and Confirm Script Execution
 Show-ProgressBar -DelaySeconds 3 -TaskName "Downloading Script"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/melxusgid/Learning/main/system_report.ps1" `
@@ -44,89 +36,89 @@ $availableRAM = [math]::Round((Get-Counter '\Memory\Available MBytes').CounterSa
 $cpuName = (Get-CimInstance Win32_Processor).Name
 $logicalProcessors = (Get-CimInstance Win32_Processor).NumberOfLogicalProcessors
 
-# Dynamic Comment Pools for CPU and RAM Usage based on Thresholds
-$cpuCommentsHigh = @(
-    "CPU load is at its limit. Things might lag.",
-    "Your CPU is under heavy load. Consider closing unused programs.",
-    "Heavy CPU usage detected. This could impact performance.",
-    "CPU running hot. System might slow down.",
-    "Your CPU is working overtime. Tasks are piling up.",
-    "High CPU usage detected. Performance could drop."
-)
-
-$ramCommentsHigh = @(
-    "Low available RAM. System performance may suffer.",
-    "RAM usage is high. Free up memory if possible.",
-    "High RAM usage detected. System may slow down.",
-    "Running out of memory. Close unnecessary tasks.",
-    "RAM is nearing its limit. Consider an upgrade.",
-    "System memory under pressure. Performance may drop."
-)
-
-# Function to Select Random Comment Based on Threshold
-function Get-RandomComment {
-    param (
-        [string]$Category,
-        [string]$Usage
-    )
-    $diceRoll = Roll-Dice - 1  # Subtract 1 to make it zero-based for array indexing
-
-    switch ($Category) {
-        "CPU" {
-            if ($Usage -ge 80) { return $cpuCommentsHigh[$diceRoll] }
-            else { return "CPU usage is low. All systems are running smoothly." }
-        }
-        "RAM" {
-            if ($Usage -ge ($totalRAM * 0.75)) { return $ramCommentsHigh[$diceRoll] }
-            else { return "RAM usage is light. You have room for more tasks." }
-        }
-    }
-}
-
-# Fetch Top CPU Processes
+# Fetch Top CPU Processes and Normalize Usage
 $topCPU = Get-Process | Where-Object { $_.CPU -ne $null } |
     Sort-Object CPU -Descending |
     Select-Object -First 5 -Property ProcessName, `
         @{Name="CPU_Usage"; Expression={
             $usage = [math]::Round(($_.CPU / $logicalProcessors), 2)
-            if ($usage -gt 100) { 100 } else { $usage } }}
+            if ($usage -gt 100) { 100 } else { $usage }
+        }}
+
+# Generate Comments for Each Top CPU Process
+$cpuReport = $topCPU | ForEach-Object {
+    $comment = if ($_.CPU_Usage -ge 80) {
+        "This process is consuming high CPU resources. Performance may degrade."
+    } elseif ($_.CPU_Usage -ge 50) {
+        "Moderate CPU usage detected. Monitor this process."
+    } else {
+        "Low CPU usage. No concerns here."
+    }
+    "$($_.ProcessName) - $($_.CPU_Usage)% - $comment"
+}
 
 # Fetch Top RAM Processes
 $topRAM = Get-Process | Sort-Object PM -Descending | `
     Select-Object -First 5 -Property ProcessName, `
     @{Name="RAM_Usage_MB"; Expression={[math]::Round($_.PM / 1MB, 2)}}
 
-# Generate Comments and Report
-$cpuComment = Get-RandomComment -Category "CPU" -Usage $cpuLoad
-$ramComment = Get-RandomComment -Category "RAM" -Usage ($totalRAM - $availableRAM)
+# Generate Comments for Each Top RAM Process
+$ramReport = $topRAM | ForEach-Object {
+    $comment = if ($_.RAM_Usage_MB -ge ($totalRAM * 0.75)) {
+        "High RAM usage detected. Free up memory if possible."
+    } elseif ($_.RAM_Usage_MB -ge ($totalRAM * 0.5)) {
+        "Moderate RAM usage. Keep an eye on memory usage."
+    } else {
+        "Low RAM usage. System memory is stable."
+    }
+    "$($_.ProcessName) - $($_.RAM_Usage_MB) MB - $comment"
+}
 
-$cpuReport = $topCPU | ForEach-Object { "$($_.ProcessName) - $($_.CPU_Usage)% - $cpuComment" }
-$ramReport = $topRAM | ForEach-Object { "$($_.ProcessName) - $($_.RAM_Usage_MB) MB - $ramComment" }
+# Recommended Upgrades
+$recommendedRAM = if ($totalRAM -lt 8) {
+    "Upgrade to at least 16GB RAM for smoother performance."
+} elseif ($totalRAM -lt 16) {
+    "Upgrade to 32GB RAM to handle more multitasking."
+} else {
+    "RAM is sufficient for current tasks."
+}
 
-# Record Script End Time and Calculate Duration
-$endTime = Get-Date
-$duration = New-TimeSpan -Start $startTime -End $endTime
-$executionTime = "{0:hh\:mm\:ss}" -f $duration
+$recommendedCPU = if ($cpuName -match "i3|i5|Ryzen 3") {
+    "Upgrade to Intel i5 10th Gen or AMD Ryzen 5 for better performance."
+} elseif ($cpuName -match "i7|Ryzen 5") {
+    "Your CPU is sufficient for most tasks but could be upgraded for heavy workloads."
+} else {
+    "Your CPU is performing well for current tasks."
+}
 
-# Add Date and Time to Report
-$currentDateTime = $startTime.ToString("MM/dd/yyyy HH:mm")
+# Add Execution Time and Date
+$startTime = Get-Date
+$executionStart = [System.Diagnostics.Stopwatch]::StartNew()
+
+# Generate Final Report
+$executionStart.Stop()
+$executionTime = "{0:hh\:mm\:ss}" -f $executionStart.Elapsed
 
 $report = @"
 **System Resource Report**
 
-**Date/Time:** $currentDateTime  
+**Date/Time:** $($startTime.ToString("MM/dd/yyyy HH:mm"))  
 **Execution Time:** $executionTime  
 
 **CPU Name:** $cpuName  
-**CPU Usage:** $cpuLoad% - $cpuComment  
+**CPU Usage:** $cpuLoad% - System running smoothly.  
 **Total RAM:** $totalRAM GB  
-**Available RAM:** $availableRAM GB - $ramComment  
+**Available RAM:** $availableRAM GB  
 
 **Top 5 CPU Usage:**
 $($cpuReport -join "`n")
 
 **Top 5 RAM Usage:**
 $($ramReport -join "`n")
+
+**Recommended Upgrades:**
+- CPU: $recommendedCPU  
+- RAM: $recommendedRAM
 
 Report generation complete!
 "@
